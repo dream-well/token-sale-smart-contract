@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdError, StdResult, Storage,
+    StdResult, Storage,
 };
 
 use crate::msg::{CountResponse, HandleMsg, InitMsg, QueryMsg};
@@ -24,30 +24,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-    match msg {
-        HandleMsg::Reset { count } => try_reset(deps, env, count),
-    }
-}
-
-pub fn try_reset<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    count: i32,
-) -> StdResult<HandleResponse> {
-    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
-    config(&mut deps.storage).update(|mut state| {
-        if sender_address_raw != state.owner {
-            return Err(StdError::Unauthorized { backtrace: None });
-        }
-        state.count = count;
-        Ok(state)
-    })?;
-    debug_print("count reset successfully");
-    Ok(HandleResponse::default())
+    match msg {}
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
