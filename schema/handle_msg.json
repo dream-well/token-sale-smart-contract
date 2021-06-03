@@ -5,17 +5,6 @@
     {
       "type": "object",
       "required": [
-        "increment"
-      ],
-      "properties": {
-        "increment": {
-          "type": "object"
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
         "reset"
       ],
       "properties": {
