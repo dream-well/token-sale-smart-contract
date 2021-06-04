@@ -3,12 +3,39 @@
   "title": "InitMsg",
   "type": "object",
   "required": [
-    "count"
+    "accepted_token",
+    "offered_token",
+    "viewing_key"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "accepted_token": {
+      "$ref": "#/definitions/SecretContract"
+    },
+    "offered_token": {
+      "$ref": "#/definitions/SecretContract"
+    },
+    "viewing_key": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "SecretContract": {
+      "type": "object",
+      "required": [
+        "address",
+        "contract_hash"
+      ],
+      "properties": {
+        "address": {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        "contract_hash": {
+          "type": "string"
+        }
+      }
     }
   }
 }
