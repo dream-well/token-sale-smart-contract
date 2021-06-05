@@ -71,6 +71,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ReceiveAcceptedTokenCallback { from, amount, .. } => {
             receive_accepted_token_callback(deps, env, from, amount)
         }
+        HandleMsg::WithdrawFunding { amount } => withdraw_funding(deps, env, amount),
     }
 }
 
@@ -165,6 +166,33 @@ fn offered_token_available<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn withdraw_funding<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    amount: Uint128,
+) -> StdResult<HandleResponse> {
+    let state = config_read(&deps.storage).load()?;
+    if env.message.sender != state.admin {
+        return Err(StdError::Unauthorized { backtrace: None });
+    }
+
+    // Transfer accepted token to admin
+    let messages = vec![snip20::transfer_msg(
+        state.admin,
+        amount,
+        None,
+        RESPONSE_BLOCK_SIZE,
+        state.accepted_token.contract_hash,
+        state.accepted_token.address,
+    )?];
+
+    Ok(HandleResponse {
+        messages,
+        log: vec![],
+        data: None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,11 +214,11 @@ mod tests {
         Extern<MockStorage, MockApi, MockQuerier>,
     ) {
         let accepted_token = SecretContract {
-            address: HumanAddr(MOCK_ACCEPTED_TOKEN_ADDRESS.to_string()),
+            address: HumanAddr::from(MOCK_ACCEPTED_TOKEN_ADDRESS),
             contract_hash: MOCK_ACCEPTED_TOKEN_CONTRACT_HASH.to_string(),
         };
         let offered_token = SecretContract {
-            address: HumanAddr(MOCK_OFFERED_TOKEN_ADDRESS.to_string()),
+            address: HumanAddr::from(MOCK_OFFERED_TOKEN_ADDRESS),
             contract_hash: MOCK_OFFERED_TOKEN_CONTRACT_HASH.to_string(),
         };
         let mut deps = mock_dependencies(20, &[]);
@@ -212,18 +240,18 @@ mod tests {
         // Test response does not include viewing key.
         // Test that the desired fields are returned.
         let accepted_token = SecretContract {
-            address: HumanAddr(MOCK_ACCEPTED_TOKEN_ADDRESS.to_string()),
+            address: HumanAddr::from(MOCK_ACCEPTED_TOKEN_ADDRESS),
             contract_hash: MOCK_ACCEPTED_TOKEN_CONTRACT_HASH.to_string(),
         };
         let offered_token = SecretContract {
-            address: HumanAddr(MOCK_OFFERED_TOKEN_ADDRESS.to_string()),
+            address: HumanAddr::from(MOCK_OFFERED_TOKEN_ADDRESS),
             contract_hash: MOCK_OFFERED_TOKEN_CONTRACT_HASH.to_string(),
         };
         assert_eq!(
             ConfigResponse {
                 accepted_token: accepted_token,
                 offered_token: offered_token,
-                admin: HumanAddr(MOCK_ADMIN.to_string())
+                admin: HumanAddr::from(MOCK_ADMIN)
             },
             value
         );
@@ -233,7 +261,7 @@ mod tests {
     fn test_receive_accepted_token_callback() {
         let (_init_result, mut deps) = init_helper();
         let amount: Uint128 = Uint128(333);
-        let from: HumanAddr = HumanAddr("someuser".to_string());
+        let from: HumanAddr = HumanAddr::from("someuser");
 
         // Test that only accepted token is accepted
         let msg = HandleMsg::ReceiveAcceptedTokenCallback {
@@ -262,6 +290,24 @@ mod tests {
             mock_env(MOCK_ACCEPTED_TOKEN_ADDRESS, &[]),
             msg.clone(),
         );
+        let res = handle_response.unwrap();
+        assert_eq!(1, res.messages.len());
+    }
+
+    #[test]
+    fn test_withdraw_funding() {
+        let (_init_result, mut deps) = init_helper();
+        let amount: Uint128 = Uint128(123);
+        // Test that only admin can call this
+        let msg = HandleMsg::WithdrawFunding { amount: amount };
+        let handle_response = handle(&mut deps, mock_env("notanadmin", &[]), msg.clone());
+        assert_eq!(
+            handle_response.unwrap_err(),
+            StdError::Unauthorized { backtrace: None }
+        );
+
+        // Test that a request is sent to the offered token contract address to transfer tokens to the admin
+        let handle_response = handle(&mut deps, mock_env(MOCK_ADMIN, &[]), msg);
         let res = handle_response.unwrap();
         assert_eq!(1, res.messages.len());
     }

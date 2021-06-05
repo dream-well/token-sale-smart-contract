@@ -14,6 +14,7 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     ReceiveAcceptedTokenCallback { from: HumanAddr, amount: Uint128 },
+    WithdrawFunding { amount: Uint128 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
