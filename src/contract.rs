@@ -1,10 +1,8 @@
-use crate::msg::ConfigResponse;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::config_read;
-use crate::state::{config, State};
-use cosmwasm_std::to_binary;
+use crate::msg::{ConfigResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::state::{config, config_read, State};
 use cosmwasm_std::{
-    Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage,
+    to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
+    StdError, StdResult, Storage, Uint128,
 };
 use secret_toolkit::snip20;
 
@@ -65,11 +63,15 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-    match msg {}
+    match msg {
+        HandleMsg::ReceiveAcceptedTokenCallback { from, amount, .. } => {
+            receive_accepted_token_callback(deps, env, from, amount)
+        }
+    }
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
@@ -92,49 +94,136 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    from: HumanAddr,
+    amount: Uint128,
+) -> StdResult<HandleResponse> {
+    // Ensure that the sent tokens are from an expected contract address
+    let state = config_read(&deps.storage).load()?;
+    if env.message.sender != state.accepted_token.address {
+        return Err(StdError::generic_err(format!(
+            "This token is not supported. Supported: {}, given: {}",
+            state.accepted_token.address, env.message.sender
+        )));
+    }
+
+    // Transfer offered token to user
+    let messages = vec![snip20::transfer_msg(
+        from,
+        amount,
+        None,
+        RESPONSE_BLOCK_SIZE,
+        state.offered_token.contract_hash,
+        state.offered_token.address,
+    )?];
+
+    Ok(HandleResponse {
+        messages,
+        log: vec![],
+        data: None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::state::SecretContract;
     use cosmwasm_std::from_binary;
+    use cosmwasm_std::testing::MockApi;
+    use cosmwasm_std::testing::MockQuerier;
+    use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::HumanAddr;
+    pub const MOCK_ADMIN: &str = "admin";
+    pub const MOCK_ACCEPTED_TOKEN_ADDRESS: &str = "sefismartcontractaddress";
+    pub const MOCK_ACCEPTED_TOKEN_CONTRACT_HASH: &str = "sefismartcontracthash";
+    pub const MOCK_OFFERED_TOKEN_ADDRESS: &str = "btnsmartcontractaddress";
+    pub const MOCK_OFFERED_TOKEN_CONTRACT_HASH: &str = "btnsmartcontracthash";
 
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies(20, &[]);
+    // === HELPERS ===
+    fn init_helper() -> (
+        StdResult<InitResponse>,
+        Extern<MockStorage, MockApi, MockQuerier>,
+    ) {
         let accepted_token = SecretContract {
-            address: HumanAddr("secretsefismartcontractaddress".to_string()),
-            contract_hash: "sefismartcontracthash".to_string(),
+            address: HumanAddr(MOCK_ACCEPTED_TOKEN_ADDRESS.to_string()),
+            contract_hash: MOCK_ACCEPTED_TOKEN_CONTRACT_HASH.to_string(),
         };
         let offered_token = SecretContract {
-            address: HumanAddr("secretbtntokensmartcontractaddress".to_string()),
-            contract_hash: "btntokensmartcontracthash".to_string(),
+            address: HumanAddr(MOCK_OFFERED_TOKEN_ADDRESS.to_string()),
+            contract_hash: MOCK_OFFERED_TOKEN_CONTRACT_HASH.to_string(),
         };
-
+        let mut deps = mock_dependencies(20, &[]);
         let msg = InitMsg {
             accepted_token: accepted_token.clone(),
             offered_token: offered_token.clone(),
             viewing_key: "nannofromthegirlfromnowhereisathaidemon?".to_string(),
         };
-        let env = mock_env("creator", &[]);
+        let env = mock_env(MOCK_ADMIN, &[]);
+        (init(&mut deps, env.clone(), msg), deps)
+    }
 
-        // we can just call .unwrap() to assert this was a success
-        let res = init(&mut deps, env.clone(), msg).unwrap();
-        // Test that the 4 messages are created to receive and view for both tokens
-        assert_eq!(4, res.messages.len());
+    #[test]
+    fn test_public_config() {
+        let (_init_result, deps) = init_helper();
 
         let res = query(&deps, QueryMsg::Config {}).unwrap();
         let value: ConfigResponse = from_binary(&res).unwrap();
         // Test response does not include viewing key.
         // Test that the desired fields are returned.
+        let accepted_token = SecretContract {
+            address: HumanAddr(MOCK_ACCEPTED_TOKEN_ADDRESS.to_string()),
+            contract_hash: MOCK_ACCEPTED_TOKEN_CONTRACT_HASH.to_string(),
+        };
+        let offered_token = SecretContract {
+            address: HumanAddr(MOCK_OFFERED_TOKEN_ADDRESS.to_string()),
+            contract_hash: MOCK_OFFERED_TOKEN_CONTRACT_HASH.to_string(),
+        };
         assert_eq!(
             ConfigResponse {
                 accepted_token: accepted_token,
                 offered_token: offered_token,
-                admin: env.message.sender
+                admin: HumanAddr(MOCK_ADMIN.to_string())
             },
             value
         );
+    }
+
+    #[test]
+    fn test_receive_accepted_token_callback() {
+        let (_init_result, mut deps) = init_helper();
+        let amount: Uint128 = Uint128(333);
+        let from: HumanAddr = HumanAddr("someuser".to_string());
+
+        // Test that only accepted token is accepted
+        let msg = HandleMsg::ReceiveAcceptedTokenCallback {
+            amount: amount,
+            from: from,
+        };
+        let handle_response = handle(
+            &mut deps,
+            mock_env(MOCK_OFFERED_TOKEN_ADDRESS, &[]),
+            msg.clone(),
+        );
+        assert_eq!(
+            handle_response.unwrap_err(),
+            StdError::GenericErr {
+                msg: format!(
+                    "This token is not supported. Supported: {}, given: {}",
+                    MOCK_ACCEPTED_TOKEN_ADDRESS, MOCK_OFFERED_TOKEN_ADDRESS
+                ),
+                backtrace: None
+            }
+        );
+
+        // Test that a request is sent to the offered token contract address to transfer tokens to the sender
+        let handle_response = handle(
+            &mut deps,
+            mock_env(MOCK_ACCEPTED_TOKEN_ADDRESS, &[]),
+            msg.clone(),
+        );
+        let res = handle_response.unwrap();
+        assert_eq!(1, res.messages.len());
     }
 }
