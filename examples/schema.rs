@@ -1,10 +1,8 @@
+use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
+use seed_funding_smart_contract::msg::{ConfigResponse, HandleMsg, InitMsg, QueryMsg};
+use seed_funding_smart_contract::state::State;
 use std::env::current_dir;
 use std::fs::create_dir_all;
-
-use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-
-use seed_funding_smart_contract::msg::{HandleMsg, InitMsg, QueryMsg};
-use seed_funding_smart_contract::state::State;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -16,4 +14,5 @@ fn main() {
     export_schema(&schema_for!(HandleMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(State), &out_dir);
+    export_schema(&schema_for!(ConfigResponse), &out_dir);
 }
