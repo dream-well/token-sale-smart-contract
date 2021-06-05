@@ -5,10 +5,32 @@
     {
       "type": "object",
       "required": [
+        "accepted_token_available"
+      ],
+      "properties": {
+        "accepted_token_available": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
         "config"
       ],
       "properties": {
         "config": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "offered_token_available"
+      ],
+      "properties": {
+        "offered_token_available": {
           "type": "object"
         }
       }

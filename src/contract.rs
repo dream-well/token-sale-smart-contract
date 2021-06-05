@@ -1,4 +1,4 @@
-use crate::msg::{ConfigResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{BalanceResponse, ConfigResponse, HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 use cosmwasm_std::{
     to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
@@ -76,11 +76,32 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
+        QueryMsg::AcceptedTokenAvailable {} => to_binary(&accepted_token_available(deps, env)?),
         QueryMsg::Config {} => to_binary(&public_config(deps)?),
+        QueryMsg::OfferedTokenAvailable {} => to_binary(&offered_token_available(deps, env)?),
     }
+}
+
+fn accepted_token_available<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<BalanceResponse> {
+    let state = config_read(&deps.storage).load()?;
+    let balance = snip20::balance_query(
+        &deps.querier,
+        env.contract.address,
+        state.viewing_key,
+        RESPONSE_BLOCK_SIZE,
+        state.accepted_token.contract_hash,
+        state.accepted_token.address,
+    )?;
+    Ok(BalanceResponse {
+        amount: balance.amount,
+    })
 }
 
 fn public_config<S: Storage, A: Api, Q: Querier>(
@@ -126,6 +147,24 @@ fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn offered_token_available<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<BalanceResponse> {
+    let state = config_read(&deps.storage).load()?;
+    let balance = snip20::balance_query(
+        &deps.querier,
+        env.contract.address,
+        state.viewing_key,
+        RESPONSE_BLOCK_SIZE,
+        state.offered_token.contract_hash,
+        state.offered_token.address,
+    )?;
+    Ok(BalanceResponse {
+        amount: balance.amount,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,7 +207,7 @@ mod tests {
     fn test_public_config() {
         let (_init_result, deps) = init_helper();
 
-        let res = query(&deps, QueryMsg::Config {}).unwrap();
+        let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
         let value: ConfigResponse = from_binary(&res).unwrap();
         // Test response does not include viewing key.
         // Test that the desired fields are returned.

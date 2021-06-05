@@ -19,13 +19,20 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    AcceptedTokenAvailable {},
     Config {},
+    OfferedTokenAvailable {},
 }
 
-// We define a custom struct for each query response
+// QUERY RESPONSE STRUCTS
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub accepted_token: SecretContract,
     pub offered_token: SecretContract,
     pub admin: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BalanceResponse {
+    pub amount: Uint128,
 }
