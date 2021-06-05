@@ -24,6 +24,25 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "withdraw_funding"
+      ],
+      "properties": {
+        "withdraw_funding": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {

@@ -1,5 +1,5 @@
 use crate::msg::{BalanceResponse, ConfigResponse, HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
+use crate::state::{config, config_read, State, User, UsersStorage};
 use cosmwasm_std::{
     to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
     StdError, StdResult, Storage, Uint128,
@@ -129,6 +129,28 @@ fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
             "This token is not supported. Supported: {}, given: {}",
             state.accepted_token.address, env.message.sender
         )));
+    }
+    // Update user's investment_amount
+    let user_human_address_as_string: String = from.to_string();
+    let user_human_address_as_bytes: &[u8] = user_human_address_as_string.as_bytes();
+
+    // Check if User already exists
+    let mut users_storage = UsersStorage::from_storage(&mut deps.storage);
+    let user: Option<User> = users_storage.get_user(user_human_address_as_bytes);
+    if user.is_none() {
+        users_storage.set_user(
+            user_human_address_as_bytes,
+            User {
+                total_investment: amount,
+            },
+        );
+    } else {
+        users_storage.set_user(
+            user_human_address_as_bytes,
+            User {
+                total_investment: user.unwrap().total_investment + amount,
+            },
+        );
     }
 
     // Transfer offered token to user
@@ -266,7 +288,7 @@ mod tests {
         // Test that only accepted token is accepted
         let msg = HandleMsg::ReceiveAcceptedTokenCallback {
             amount: amount,
-            from: from,
+            from: from.clone(),
         };
         let handle_response = handle(
             &mut deps,
@@ -284,14 +306,27 @@ mod tests {
             }
         );
 
-        // Test that a request is sent to the offered token contract address to transfer tokens to the sender
+        // When received token is the accepted token
         let handle_response = handle(
             &mut deps,
             mock_env(MOCK_ACCEPTED_TOKEN_ADDRESS, &[]),
             msg.clone(),
         );
+
+        // It sends offered token to user
         let res = handle_response.unwrap();
         assert_eq!(1, res.messages.len());
+
+        // It sets or updates the user's total investment
+        let handle_response = handle(
+            &mut deps,
+            mock_env(MOCK_ACCEPTED_TOKEN_ADDRESS, &[]),
+            msg.clone(),
+        );
+        handle_response.unwrap();
+        let users_storage = UsersStorage::from_storage(&mut deps.storage);
+        let user: Option<User> = users_storage.get_user(from.to_string().as_bytes());
+        assert_eq!(amount + amount, user.unwrap().total_investment);
     }
 
     #[test]
