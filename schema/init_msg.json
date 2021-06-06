@@ -4,12 +4,16 @@
   "type": "object",
   "required": [
     "accepted_token",
+    "exchange_rate",
     "offered_token",
     "viewing_key"
   ],
   "properties": {
     "accepted_token": {
       "$ref": "#/definitions/SecretContract"
+    },
+    "exchange_rate": {
+      "$ref": "#/definitions/Uint128"
     },
     "offered_token": {
       "$ref": "#/definitions/SecretContract"
@@ -36,6 +40,9 @@
           "type": "string"
         }
       }
+    },
+    "Uint128": {
+      "type": "string"
     }
   }
 }

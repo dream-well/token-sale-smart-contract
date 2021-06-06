@@ -14,6 +14,7 @@ pub struct SecretContract {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     pub accepted_token: SecretContract,
+    pub exchange_rate: Uint128,
     pub offered_token: SecretContract,
     pub admin: HumanAddr,
     pub total_raised: Uint128,

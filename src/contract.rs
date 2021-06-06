@@ -17,6 +17,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         accepted_token: msg.accepted_token.clone(),
         offered_token: msg.offered_token.clone(),
         admin: env.message.sender.clone(),
+        exchange_rate: msg.exchange_rate,
         total_raised: Uint128(0),
         viewing_key: msg.viewing_key.clone(),
     };
@@ -112,6 +113,7 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
     let state = config_read(&deps.storage).load()?;
     Ok(ConfigResponse {
         accepted_token: state.accepted_token,
+        exchange_rate: state.exchange_rate,
         offered_token: state.offered_token,
         admin: state.admin,
         total_raised: state.total_raised,
@@ -136,10 +138,13 @@ fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
     state.total_raised = state.total_raised + amount;
     config(&mut deps.storage).save(&state)?;
 
+    // apply exchange rate to amount
+    let amount_of_offered_token_to_send = Uint128(amount.u128() * state.exchange_rate.u128());
+
     // Transfer offered token to user
     let messages = vec![snip20::transfer_msg(
         from,
-        amount,
+        amount_of_offered_token_to_send,
         None,
         RESPONSE_BLOCK_SIZE,
         state.offered_token.contract_hash,
@@ -203,10 +208,8 @@ mod tests {
     use super::*;
     use crate::state::SecretContract;
     use cosmwasm_std::from_binary;
-    use cosmwasm_std::testing::MockApi;
-    use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage};
+
     pub const MOCK_ADMIN: &str = "admin";
     pub const MOCK_ACCEPTED_TOKEN_ADDRESS: &str = "sefismartcontractaddress";
     pub const MOCK_ACCEPTED_TOKEN_CONTRACT_HASH: &str = "sefismartcontracthash";
@@ -231,6 +234,7 @@ mod tests {
         let msg = InitMsg {
             accepted_token: accepted_token.clone(),
             offered_token: offered_token.clone(),
+            exchange_rate: Uint128(123),
             viewing_key: "nannofromthegirlfromnowhereisathaidemon?".to_string(),
         };
         (init(&mut deps, env.clone(), msg), deps)
@@ -257,6 +261,7 @@ mod tests {
                 accepted_token: accepted_token,
                 offered_token: offered_token,
                 admin: HumanAddr::from(MOCK_ADMIN),
+                exchange_rate: Uint128(123),
                 total_raised: Uint128(0)
             },
             value
