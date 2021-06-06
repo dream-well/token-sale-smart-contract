@@ -17,6 +17,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         accepted_token: msg.accepted_token.clone(),
         offered_token: msg.offered_token.clone(),
         admin: env.message.sender.clone(),
+        sale_end_time: msg.sale_end_time,
         viewing_key: msg.viewing_key.clone(),
     };
 
@@ -111,8 +112,9 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
     let state = config_read(&deps.storage).load()?;
     Ok(ConfigResponse {
         accepted_token: state.accepted_token,
-        offered_token: state.offered_token,
         admin: state.admin,
+        offered_token: state.offered_token,
+        sale_end_time: state.sale_end_time,
     })
 }
 
@@ -247,6 +249,7 @@ mod tests {
         let msg = InitMsg {
             accepted_token: accepted_token.clone(),
             offered_token: offered_token.clone(),
+            sale_end_time: 1622935506,
             viewing_key: "nannofromthegirlfromnowhereisathaidemon?".to_string(),
         };
         let env = mock_env(MOCK_ADMIN, &[]);
@@ -272,8 +275,9 @@ mod tests {
         assert_eq!(
             ConfigResponse {
                 accepted_token: accepted_token,
+                admin: HumanAddr::from(MOCK_ADMIN),
                 offered_token: offered_token,
-                admin: HumanAddr::from(MOCK_ADMIN)
+                sale_end_time: 1622935506,
             },
             value
         );
