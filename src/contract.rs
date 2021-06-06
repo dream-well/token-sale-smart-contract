@@ -15,8 +15,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     let state = State {
         accepted_token: msg.accepted_token.clone(),
-        offered_token: msg.offered_token.clone(),
         admin: env.message.sender.clone(),
+        offered_token: msg.offered_token.clone(),
+        percent_of_funding_collected: 0,
         sale_end_time: msg.sale_end_time,
         viewing_key: msg.viewing_key.clone(),
     };
@@ -114,6 +115,7 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
         accepted_token: state.accepted_token,
         admin: state.admin,
         offered_token: state.offered_token,
+        percent_of_funding_collected: state.percent_of_funding_collected,
         sale_end_time: state.sale_end_time,
     })
 }
@@ -195,10 +197,14 @@ fn withdraw_funding<S: Storage, A: Api, Q: Querier>(
     env: Env,
     amount: Uint128,
 ) -> StdResult<HandleResponse> {
-    let state = config_read(&deps.storage).load()?;
+    let mut state = config_read(&deps.storage).load()?;
     if env.message.sender != state.admin {
         return Err(StdError::Unauthorized { backtrace: None });
     }
+
+    // Update percent of funding collected
+    state.percent_of_funding_collected = 100;
+    config(&mut deps.storage).save(&state)?;
 
     // Transfer accepted token to admin
     let messages = vec![snip20::transfer_msg(
@@ -277,6 +283,7 @@ mod tests {
                 accepted_token: accepted_token,
                 admin: HumanAddr::from(MOCK_ADMIN),
                 offered_token: offered_token,
+                percent_of_funding_collected: 0,
                 sale_end_time: 1622935506,
             },
             value
@@ -345,8 +352,15 @@ mod tests {
             StdError::Unauthorized { backtrace: None }
         );
 
-        // Test that a request is sent to the offered token contract address to transfer tokens to the admin
+        // When withdrawal is successful
         let handle_response = handle(&mut deps, mock_env(MOCK_ADMIN, &[]), msg);
+
+        // It udpates the percent of fundraising collected
+        let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
+        let value: ConfigResponse = from_binary(&res).unwrap();
+        assert_eq!(100, value.percent_of_funding_collected);
+
+        // It sends a request to the offered token contract address to transfer tokens to the admin
         let res = handle_response.unwrap();
         assert_eq!(1, res.messages.len());
     }

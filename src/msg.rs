@@ -32,6 +32,7 @@ pub struct ConfigResponse {
     pub accepted_token: SecretContract,
     pub admin: HumanAddr,
     pub offered_token: SecretContract,
+    pub percent_of_funding_collected: u8,
     pub sale_end_time: u64,
 }
 
