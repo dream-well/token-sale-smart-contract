@@ -198,8 +198,17 @@ fn withdraw_funding<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
 ) -> StdResult<HandleResponse> {
     let mut state = config_read(&deps.storage).load()?;
+
+    // Enforce admin
     if env.message.sender != state.admin {
         return Err(StdError::Unauthorized { backtrace: None });
+    }
+
+    // Enforce that sale has finished
+    if env.block.time < state.sale_end_time {
+        return Err(StdError::generic_err(
+            "Funding can't be withdrawn until sale has ended.",
+        ));
     }
 
     // Update percent of funding collected
@@ -243,6 +252,7 @@ mod tests {
         StdResult<InitResponse>,
         Extern<MockStorage, MockApi, MockQuerier>,
     ) {
+        let env = mock_env(MOCK_ADMIN, &[]);
         let accepted_token = SecretContract {
             address: HumanAddr::from(MOCK_ACCEPTED_TOKEN_ADDRESS),
             contract_hash: MOCK_ACCEPTED_TOKEN_CONTRACT_HASH.to_string(),
@@ -258,7 +268,6 @@ mod tests {
             sale_end_time: 1622935506,
             viewing_key: "nannofromthegirlfromnowhereisathaidemon?".to_string(),
         };
-        let env = mock_env(MOCK_ADMIN, &[]);
         (init(&mut deps, env.clone(), msg), deps)
     }
 
@@ -344,7 +353,7 @@ mod tests {
     fn test_withdraw_funding() {
         let (_init_result, mut deps) = init_helper();
         let amount: Uint128 = Uint128(123);
-        // Test that only admin can call this
+        //=== When user is not admin
         let msg = HandleMsg::WithdrawFunding { amount: amount };
         let handle_response = handle(&mut deps, mock_env("notanadmin", &[]), msg.clone());
         assert_eq!(
@@ -352,8 +361,23 @@ mod tests {
             StdError::Unauthorized { backtrace: None }
         );
 
-        // When withdrawal is successful
-        let handle_response = handle(&mut deps, mock_env(MOCK_ADMIN, &[]), msg);
+        //=== When user is admin
+        let env = mock_env(MOCK_ADMIN, &[]);
+
+        //=== when sale has NOT ended yet
+        let handle_response = handle(&mut deps, env.clone(), msg.clone());
+        assert_eq!(
+            handle_response.unwrap_err(),
+            StdError::generic_err("Funding can't be withdrawn until sale has ended.")
+        );
+
+        // === when sale has ended
+        let mut state = config_read(&deps.storage).load().unwrap();
+        state.sale_end_time = env.block.time - 3;
+        config(&mut deps.storage).save(&state).unwrap();
+
+        //=== When withdrawal is successful
+        let handle_response = handle(&mut deps, env, msg);
 
         // It udpates the percent of fundraising collected
         let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
