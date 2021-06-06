@@ -17,6 +17,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         accepted_token: msg.accepted_token.clone(),
         offered_token: msg.offered_token.clone(),
         admin: env.message.sender.clone(),
+        total_raised: Uint128(0),
         viewing_key: msg.viewing_key.clone(),
     };
 
@@ -113,6 +114,7 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
         accepted_token: state.accepted_token,
         offered_token: state.offered_token,
         admin: state.admin,
+        total_raised: state.total_raised,
     })
 }
 
@@ -123,13 +125,16 @@ fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
 ) -> StdResult<HandleResponse> {
     // Ensure that the sent tokens are from an expected contract address
-    let state = config_read(&deps.storage).load()?;
+    let mut state = config_read(&deps.storage).load()?;
     if env.message.sender != state.accepted_token.address {
         return Err(StdError::generic_err(format!(
             "This token is not supported. Supported: {}, given: {}",
             state.accepted_token.address, env.message.sender
         )));
     }
+
+    state.total_raised = state.total_raised + amount;
+    config(&mut deps.storage).save(&state)?;
 
     // Transfer offered token to user
     let messages = vec![snip20::transfer_msg(
@@ -251,7 +256,8 @@ mod tests {
             ConfigResponse {
                 accepted_token: accepted_token,
                 offered_token: offered_token,
-                admin: HumanAddr::from(MOCK_ADMIN)
+                admin: HumanAddr::from(MOCK_ADMIN),
+                total_raised: Uint128(0)
             },
             value
         );
@@ -292,6 +298,11 @@ mod tests {
         );
         let res = handle_response.unwrap();
         assert_eq!(1, res.messages.len());
+
+        // Test that total raised is updated
+        let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
+        let value: ConfigResponse = from_binary(&res).unwrap();
+        assert_eq!(amount, value.total_raised);
     }
 
     #[test]

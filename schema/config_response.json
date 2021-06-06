@@ -5,7 +5,8 @@
   "required": [
     "accepted_token",
     "admin",
-    "offered_token"
+    "offered_token",
+    "total_raised"
   ],
   "properties": {
     "accepted_token": {
@@ -16,6 +17,9 @@
     },
     "offered_token": {
       "$ref": "#/definitions/SecretContract"
+    },
+    "total_raised": {
+      "$ref": "#/definitions/Uint128"
     }
   },
   "definitions": {
@@ -36,6 +40,9 @@
           "type": "string"
         }
       }
+    },
+    "Uint128": {
+      "type": "string"
     }
   }
 }

@@ -31,6 +31,7 @@ pub struct ConfigResponse {
     pub accepted_token: SecretContract,
     pub offered_token: SecretContract,
     pub admin: HumanAddr,
+    pub total_raised: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -1,4 +1,4 @@
-use cosmwasm_std::{HumanAddr, Storage};
+use cosmwasm_std::{HumanAddr, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,7 @@ pub struct State {
     pub accepted_token: SecretContract,
     pub offered_token: SecretContract,
     pub admin: HumanAddr,
+    pub total_raised: Uint128,
     pub viewing_key: String,
 }
 

@@ -6,6 +6,7 @@
     "accepted_token",
     "admin",
     "offered_token",
+    "total_raised",
     "viewing_key"
   ],
   "properties": {
@@ -17,6 +18,9 @@
     },
     "offered_token": {
       "$ref": "#/definitions/SecretContract"
+    },
+    "total_raised": {
+      "$ref": "#/definitions/Uint128"
     },
     "viewing_key": {
       "type": "string"
@@ -40,6 +44,9 @@
           "type": "string"
         }
       }
+    },
+    "Uint128": {
+      "type": "string"
     }
   }
 }
