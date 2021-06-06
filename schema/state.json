@@ -6,7 +6,6 @@
     "accepted_token",
     "admin",
     "offered_token",
-    "sale_end_time",
     "viewing_key"
   ],
   "properties": {
@@ -18,11 +17,6 @@
     },
     "offered_token": {
       "$ref": "#/definitions/SecretContract"
-    },
-    "sale_end_time": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
     },
     "viewing_key": {
       "type": "string"

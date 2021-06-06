@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 pub struct InitMsg {
     pub accepted_token: SecretContract,
     pub offered_token: SecretContract,
-    pub sale_end_time: u64,
     pub viewing_key: String,
 }
 
@@ -30,9 +29,8 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub accepted_token: SecretContract,
-    pub admin: HumanAddr,
     pub offered_token: SecretContract,
-    pub sale_end_time: u64,
+    pub admin: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
