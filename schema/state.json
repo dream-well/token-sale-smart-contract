@@ -6,7 +6,6 @@
     "accepted_token",
     "admin",
     "offered_token",
-    "percent_of_funding_collected",
     "sale_end_time",
     "viewing_key"
   ],
@@ -19,11 +18,6 @@
     },
     "offered_token": {
       "$ref": "#/definitions/SecretContract"
-    },
-    "percent_of_funding_collected": {
-      "type": "integer",
-      "format": "uint8",
-      "minimum": 0.0
     },
     "sale_end_time": {
       "type": "integer",
