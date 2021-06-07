@@ -1,8 +1,8 @@
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use seed_funding_smart_contract::msg::{
+use cw_token_sale_smart_contract::msg::{
     BalanceResponse, ConfigResponse, HandleMsg, InitMsg, QueryMsg,
 };
-use seed_funding_smart_contract::state::State;
+use cw_token_sale_smart_contract::state::State;
 use std::env::current_dir;
 use std::fs::create_dir_all;
 

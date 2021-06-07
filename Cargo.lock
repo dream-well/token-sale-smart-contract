@@ -168,6 +168,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-token-sale-smart-contract"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "schemars",
+ "secret-toolkit",
+ "serde",
+ "snafu",
+]
+
+[[package]]
 name = "digest"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -470,19 +483,6 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "seed-funding-smart-contract"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "schemars",
- "secret-toolkit",
- "serde",
- "snafu",
 ]
 
 [[package]]

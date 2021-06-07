@@ -1,5 +1,5 @@
 [package]
-name = "seed-funding-smart-contract"
+name = "cw-token-sale-smart-contract"
 version = "0.1.0"
 authors = ["Steven Chang <steven.chang@btn.group>"]
 edition = "2018"
