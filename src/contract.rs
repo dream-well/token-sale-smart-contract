@@ -42,13 +42,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             msg.accepted_token.contract_hash,
             msg.accepted_token.address,
         )?,
-        snip20::register_receive_msg(
-            env.contract_code_hash,
-            None,
-            1,
-            msg.offered_token.contract_hash.clone(),
-            msg.offered_token.address.clone(),
-        )?,
         snip20::set_viewing_key_msg(
             msg.viewing_key,
             None,
