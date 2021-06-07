@@ -63,9 +63,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::ReceiveAcceptedTokenCallback { from, amount, .. } => {
-            receive_accepted_token_callback(deps, env, from, amount)
-        }
+        HandleMsg::Receive {
+            from, amount, msg, ..
+        } => receive(deps, env, from, amount, msg),
         HandleMsg::WithdrawFunding { amount } => withdraw_funding(deps, env, amount),
     }
 }
@@ -113,11 +113,12 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn receive_accepted_token_callback<S: Storage, A: Api, Q: Querier>(
+fn receive<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
+    _msg: Binary,
 ) -> StdResult<HandleResponse> {
     // Ensure that the sent tokens are from an expected contract address
     let mut state = config_read(&deps.storage).load()?;
@@ -199,6 +200,7 @@ fn withdraw_funding<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::msg::ReceiveMsg;
     use crate::state::SecretContract;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage};
@@ -268,9 +270,11 @@ mod tests {
         let from: HumanAddr = HumanAddr::from("someuser");
 
         // Test that only accepted token is accepted
-        let msg = HandleMsg::ReceiveAcceptedTokenCallback {
+        let msg = HandleMsg::Receive {
             amount: amount,
-            from: from,
+            from: from.clone(),
+            sender: from,
+            msg: to_binary(&ReceiveMsg::Deposit {}).unwrap(),
         };
         let handle_response = handle(
             &mut deps,
