@@ -20,15 +20,11 @@ pub enum HandleMsg {
         amount: Uint128,
         msg: Binary,
     },
-    WithdrawFunding {
-        amount: Uint128,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    AcceptedTokenAvailable {},
     Config {},
     OfferedTokenAvailable {},
 }

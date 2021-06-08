@@ -25,8 +25,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     config(&mut deps.storage).save(&state)?;
 
     // https://github.com/enigmampc/secret-toolkit/tree/master/packages/snip20
-    // Register this contract to be able to receive the incentivized token
-    // Enable this contract to see it's incentivized token details via viewing key
+    // Register this contract to be able to receive the ACCEPTED token
+    // Enable this contract to see it's OFFERED token
     let messages = vec![
         snip20::register_receive_msg(
             env.contract_code_hash.clone(),
@@ -34,13 +34,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             1,
             msg.accepted_token.contract_hash.clone(),
             msg.accepted_token.address.clone(),
-        )?,
-        snip20::set_viewing_key_msg(
-            msg.viewing_key.clone(),
-            None,
-            RESPONSE_BLOCK_SIZE,
-            msg.accepted_token.contract_hash,
-            msg.accepted_token.address,
         )?,
         snip20::set_viewing_key_msg(
             msg.viewing_key,
@@ -66,7 +59,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive {
             from, amount, msg, ..
         } => receive(deps, env, from, amount, msg),
-        HandleMsg::WithdrawFunding { amount } => withdraw_funding(deps, env, amount),
     }
 }
 
@@ -76,28 +68,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::AcceptedTokenAvailable {} => to_binary(&accepted_token_available(deps, env)?),
         QueryMsg::Config {} => to_binary(&public_config(deps)?),
         QueryMsg::OfferedTokenAvailable {} => to_binary(&offered_token_available(deps, env)?),
     }
-}
-
-fn accepted_token_available<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    env: Env,
-) -> StdResult<BalanceResponse> {
-    let state = config_read(&deps.storage).load()?;
-    let balance = snip20::balance_query(
-        &deps.querier,
-        env.contract.address,
-        state.viewing_key,
-        RESPONSE_BLOCK_SIZE,
-        state.accepted_token.contract_hash,
-        state.accepted_token.address,
-    )?;
-    Ok(BalanceResponse {
-        amount: balance.amount,
-    })
 }
 
 fn public_config<S: Storage, A: Api, Q: Querier>(
@@ -136,14 +109,24 @@ fn receive<S: Storage, A: Api, Q: Querier>(
     let amount_of_offered_token_to_send = Uint128(amount.u128() * state.exchange_rate.u128());
 
     // Transfer offered token to user
-    let messages = vec![snip20::transfer_msg(
-        from,
-        amount_of_offered_token_to_send,
-        None,
-        RESPONSE_BLOCK_SIZE,
-        state.offered_token.contract_hash,
-        state.offered_token.address,
-    )?];
+    let messages = vec![
+        snip20::transfer_msg(
+            from,
+            amount_of_offered_token_to_send,
+            None,
+            RESPONSE_BLOCK_SIZE,
+            state.offered_token.contract_hash,
+            state.offered_token.address,
+        )?,
+        snip20::transfer_msg(
+            state.admin,
+            amount,
+            None,
+            RESPONSE_BLOCK_SIZE,
+            state.accepted_token.contract_hash,
+            state.accepted_token.address,
+        )?,
+    ];
 
     Ok(HandleResponse {
         messages,
@@ -167,33 +150,6 @@ fn offered_token_available<S: Storage, A: Api, Q: Querier>(
     )?;
     Ok(BalanceResponse {
         amount: balance.amount,
-    })
-}
-
-fn withdraw_funding<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    amount: Uint128,
-) -> StdResult<HandleResponse> {
-    let state = config_read(&deps.storage).load()?;
-    if env.message.sender != state.admin {
-        return Err(StdError::Unauthorized { backtrace: None });
-    }
-
-    // Transfer accepted token to admin
-    let messages = vec![snip20::transfer_msg(
-        state.admin,
-        amount,
-        None,
-        RESPONSE_BLOCK_SIZE,
-        state.accepted_token.contract_hash,
-        state.accepted_token.address,
-    )?];
-
-    Ok(HandleResponse {
-        messages,
-        log: vec![],
-        data: None,
     })
 }
 
@@ -299,29 +255,11 @@ mod tests {
             msg.clone(),
         );
         let res = handle_response.unwrap();
-        assert_eq!(1, res.messages.len());
+        assert_eq!(2, res.messages.len());
 
         // Test that total raised is updated
         let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
         let value: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(amount, value.total_raised);
-    }
-
-    #[test]
-    fn test_withdraw_funding() {
-        let (_init_result, mut deps) = init_helper();
-        let amount: Uint128 = Uint128(123);
-        //=== When user is not admin
-        let msg = HandleMsg::WithdrawFunding { amount: amount };
-        let handle_response = handle(&mut deps, mock_env("notanadmin", &[]), msg.clone());
-        assert_eq!(
-            handle_response.unwrap_err(),
-            StdError::Unauthorized { backtrace: None }
-        );
-
-        // Test that a request is sent to the offered token contract address to transfer tokens to the admin
-        let handle_response = handle(&mut deps, mock_env(MOCK_ADMIN, &[]), msg);
-        let res = handle_response.unwrap();
-        assert_eq!(1, res.messages.len());
     }
 }
