@@ -17,6 +17,7 @@ pub struct State {
     pub exchange_rate: Uint128,
     pub offered_token: SecretContract,
     pub admin: HumanAddr,
+    pub contract_address: HumanAddr,
     pub total_raised: Uint128,
     pub viewing_key: String,
 }

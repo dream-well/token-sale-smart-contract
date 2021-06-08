@@ -5,6 +5,7 @@
   "required": [
     "accepted_token",
     "admin",
+    "contract_address",
     "exchange_rate",
     "offered_token",
     "total_raised"
@@ -14,6 +15,9 @@
       "$ref": "#/definitions/SecretContract"
     },
     "admin": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "contract_address": {
       "$ref": "#/definitions/HumanAddr"
     },
     "exchange_rate": {

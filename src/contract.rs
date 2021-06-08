@@ -18,6 +18,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         offered_token: msg.offered_token.clone(),
         admin: env.message.sender.clone(),
         exchange_rate: msg.exchange_rate,
+        contract_address: env.contract.address,
         total_raised: Uint128(0),
         viewing_key: msg.viewing_key.clone(),
     };
@@ -64,12 +65,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&public_config(deps)?),
-        QueryMsg::OfferedTokenAvailable {} => to_binary(&offered_token_available(deps, env)?),
+        QueryMsg::OfferedTokenAvailable {} => to_binary(&offered_token_available(deps)?),
     }
 }
 
@@ -79,9 +79,10 @@ fn public_config<S: Storage, A: Api, Q: Querier>(
     let state = config_read(&deps.storage).load()?;
     Ok(ConfigResponse {
         accepted_token: state.accepted_token,
-        exchange_rate: state.exchange_rate,
         offered_token: state.offered_token,
         admin: state.admin,
+        exchange_rate: state.exchange_rate,
+        contract_address: state.contract_address,
         total_raised: state.total_raised,
     })
 }
@@ -137,12 +138,11 @@ fn receive<S: Storage, A: Api, Q: Querier>(
 
 fn offered_token_available<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: Env,
 ) -> StdResult<BalanceResponse> {
     let state = config_read(&deps.storage).load()?;
     let balance = snip20::balance_query(
         &deps.querier,
-        env.contract.address,
+        state.contract_address,
         state.viewing_key,
         RESPONSE_BLOCK_SIZE,
         state.offered_token.contract_hash,
@@ -195,7 +195,7 @@ mod tests {
     fn test_public_config() {
         let (_init_result, deps) = init_helper();
 
-        let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
+        let res = query(&deps, QueryMsg::Config {}).unwrap();
         let value: ConfigResponse = from_binary(&res).unwrap();
         // Test response does not include viewing key.
         // Test that the desired fields are returned.
@@ -207,11 +207,13 @@ mod tests {
             address: HumanAddr::from(MOCK_OFFERED_TOKEN_ADDRESS),
             contract_hash: MOCK_OFFERED_TOKEN_CONTRACT_HASH.to_string(),
         };
+        let state = config_read(&deps.storage).load().unwrap();
         assert_eq!(
             ConfigResponse {
                 accepted_token: accepted_token,
                 offered_token: offered_token,
                 admin: HumanAddr::from(MOCK_ADMIN),
+                contract_address: state.contract_address,
                 exchange_rate: Uint128(123),
                 total_raised: Uint128(0)
             },
@@ -258,7 +260,7 @@ mod tests {
         assert_eq!(2, res.messages.len());
 
         // Test that total raised is updated
-        let res = query(&deps, mock_env(MOCK_ADMIN, &[]), QueryMsg::Config {}).unwrap();
+        let res = query(&deps, QueryMsg::Config {}).unwrap();
         let value: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(amount, value.total_raised);
     }
