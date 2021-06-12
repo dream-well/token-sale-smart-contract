@@ -15,4 +15,4 @@ Very simple contract that was used to sell our native token at [btn.group](https
 3. The exchange rate returned in the Config query could be misleading to users depending on the number of decimal points in the accepted token, versus the number of decimal points in the offered token. Everything works as expected if both tokens have the same decimal places.
 
     #### But for example:
-    Let’s say you make the exchange rate 5, the accepted token has 4 decimal places, and the offered token has 6 decimal places. When someone sends 1.0000 accepted tokens, they will receive 0.050000 of the offered tokens.  So the exchange rate is really 0.05, not 5, but the config will say it is 5
+    Let’s say you make the exchange rate 5, the accepted token has 4 decimal places, and the offered token has 6 decimal places. When someone sends 1.0000 accepted tokens, they will receive 0.050000 of the offered tokens.  So the exchange rate is really 0.05, not 5, but the Config query will say it is 5
